@@ -1,0 +1,184 @@
+============================================================
+AI-POWERED CONVERSATIONAL ANALYTICS PLATFORM - SETUP GUIDE
+============================================================
+
+This guide explains how to set up and run the full project
+(React frontend + Go gateway + Python AI service) on your
+local machine.
+
+
+------------------------------------------------------------
+REQUIREMENTS
+------------------------------------------------------------
+
+Before starting, make sure you have these installed:
+
+  - Docker Desktop (includes Docker Compose)
+  - Node.js (v18 or higher) - only needed if running frontend
+    outside Docker
+  - Git
+  - An AWS account with:
+      - Access Key ID + Secret Access Key
+      - Bedrock access enabled for Claude Sonnet 4.5
+      - An S3 bucket with your CSV/Excel dataset uploaded
+
+
+------------------------------------------------------------
+STEP 1 - CLONE THE REPOSITORY
+------------------------------------------------------------
+
+  git clone https://github.com/YOUR_USERNAME/ai-analytics-platform.git
+  cd ai-analytics-platform
+
+
+------------------------------------------------------------
+STEP 2 - SET UP ENVIRONMENT VARIABLES
+------------------------------------------------------------
+
+The Python AI service needs your AWS credentials.
+
+  1. Go into the Python project folder:
+       cd ai-analytics-platform
+
+  2. Copy the example env file:
+       cp .env.example .env
+
+  3. Open .env in a text editor and fill in your real values:
+
+       AWS_ACCESS_KEY_ID=your_actual_key
+       AWS_SECRET_ACCESS_KEY=your_actual_secret
+       AWS_DEFAULT_REGION=eu-west-1
+       S3_BUCKET=your-actual-bucket-name
+
+  4. Go back to the project root:
+       cd ..
+
+  NOTE: Never commit this .env file to GitHub. It is already
+  listed in .gitignore.
+
+
+------------------------------------------------------------
+STEP 3 - START THE FULL STACK WITH DOCKER
+------------------------------------------------------------
+
+From the project root, run:
+
+  docker compose -f docker-compose-full.yml up --build
+
+This will start 4 services:
+
+  - gateway    (Go API gateway)        -> http://localhost:8080
+  - ai-agent   (Python FastAPI/LangGraph) -> internal only, port 8000
+  - redis      (session cache)         -> internal only
+  - postgres   (conversation history)  -> internal only
+
+Wait until you see in the logs:
+
+  "gateway starting" port=8080
+  "redis connected"
+  "postgres connected"
+  "database migrations applied"
+
+This means everything started correctly.
+
+To stop everything later, press CTRL+C, then run:
+
+  docker compose -f docker-compose-full.yml down
+
+
+------------------------------------------------------------
+STEP 4 - START THE REACT FRONTEND
+------------------------------------------------------------
+
+The frontend runs separately (not inside Docker in this setup).
+
+  1. Open a new terminal window
+  2. Go into the frontend folder:
+       cd agent-platform
+  3. Install dependencies (first time only):
+       npm install
+  4. Start the dev server:
+       npm run dev
+
+The frontend will be available at:
+
+  http://localhost:5173
+
+
+------------------------------------------------------------
+STEP 5 - GET A LOGIN TOKEN (FOR TESTING WITH CURL)
+------------------------------------------------------------
+
+If you want to test the API directly without the frontend:
+
+  curl -s -X POST http://localhost:8080/auth/token \
+    -H "Content-Type: application/json" \
+    -d "{\"user_id\": \"alice\", \"email\": \"alice@example.com\"}"
+
+This returns a JSON response with a "token" field. Copy that
+token value for the next step.
+
+
+------------------------------------------------------------
+STEP 6 - TEST AN ANALYSIS REQUEST (OPTIONAL, VIA CURL)
+------------------------------------------------------------
+
+Replace YOUR_TOKEN_HERE and the s3_uri with your own values:
+
+  curl -s -X POST http://localhost:8080/analyze \
+    -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+    -H "Content-Type: application/json" \
+    -d "{\"user_query\": \"What are the top 5 products by revenue?\", \"s3_uri\": \"s3://your-bucket/your-file.csv\"}"
+
+
+------------------------------------------------------------
+STEP 7 - USE THE APP NORMALLY
+------------------------------------------------------------
+
+  1. Open http://localhost:5173 in your browser
+  2. In the left sidebar, paste your S3 file path
+     (example: s3://your-bucket/your-file.csv) and click +
+  3. Type a question in the chat box, for example:
+       "Show top 10 products by revenue"
+  4. Press Enter or click the send button
+  5. Results, charts, and generated code will appear on the
+     right side panel
+
+
+------------------------------------------------------------
+TROUBLESHOOTING
+------------------------------------------------------------
+
+PROBLEM: "redis connection failed" or "postgres ping failed"
+FIX: Make sure Docker Desktop is running and no other service
+     is already using ports 6379 or 5432 on your machine.
+
+PROBLEM: Frontend shows "Request failed: NetworkError"
+FIX: Make sure the Go gateway is running on port 8080 and
+     check the browser console/network tab for the actual
+     error (401 = bad token, 429 = rate limited, 502 = Python
+     service is down).
+
+PROBLEM: "invalid or expired token" error
+FIX: Tokens expire after 24 hours by default. Get a new token
+     using Step 5 above.
+
+PROBLEM: Analysis takes a long time or times out
+FIX: This is normal for large datasets or complex queries -
+     the LangGraph pipeline may retry up to 3 times. The
+     gateway timeout is set to 180 seconds.
+
+
+------------------------------------------------------------
+PROJECT STRUCTURE QUICK REFERENCE
+------------------------------------------------------------
+
+  gateway/                  -> Go API gateway source code
+  ai-analytics-platform/     -> Python FastAPI + LangGraph source code
+  agent-platform/             -> React frontend source code
+  docker-compose-full.yml     -> starts gateway + python + redis + postgres
+  README.md                   -> project overview and architecture
+
+============================================================
+END OF SETUP GUIDE
+============================================================
