@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #020617;
+  --color-surface: #1e293b;
+  --color-accent: #3b82f6;
+  --color-success: #22c55e;
+}
+/* Base styles to ensure the dark theme looks right */
+@layer base {
+  body {
+    @apply bg-background text-slate-200;
+    font-family: 'Inter', sans-serif;
+  }
+}

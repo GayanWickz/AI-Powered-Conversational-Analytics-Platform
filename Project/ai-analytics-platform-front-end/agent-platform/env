@@ -1,0 +1,9 @@
+# URL of your Python FastAPI backend
+# For local development (Python running directly):
+VITE_API_URL=http://localhost:8000
+
+# For Docker Compose (both services in the same network):
+# VITE_API_URL=http://ai-agent:8000
+
+# For production (replace with your actual domain/IP):
+# VITE_API_URL=https://your-api-domain.com

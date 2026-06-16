@@ -1,0 +1,23 @@
+services:
+
+  # ── Python AI Backend ────────────────────────────────────────────────────────
+  ai-agent:
+    build: ./ai-analytics-platform   # path to your Python project root
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./ai-analytics-platform/.env
+    volumes:
+      - ./ai-analytics-platform/src:/app/src
+
+  # ── React Frontend ───────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./agent-platform       # path to your React project root
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_URL=http://ai-agent:8000
+    depends_on:
+      - ai-agent

@@ -1,0 +1,75 @@
+services:
+
+  # ── Go API Gateway ───────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ../gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      GATEWAY_PORT: "8080"
+      PYTHON_BASE_URL: "http://ai-agent:8000"
+      JWT_SECRET: "${JWT_SECRET:-change-me-in-production}"
+      REDIS_ADDR: "redis:6379"
+      POSTGRES_DSN: "postgres://analytics:analytics@postgres:5432/analytics?sslmode=disable"
+      RATE_LIMIT_RPS: "5"
+      RATE_LIMIT_BURST: "10"
+      MAX_CONCURRENT: "20"
+      MAX_HISTORY_TURNS: "10"
+      SESSION_TTL: "24h"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      ai-agent:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Python FastAPI (LangGraph agent) ─────────────────────────────────────────
+  ai-agent:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    expose:
+      - "8000"          # internal only — clients must go through gateway
+    env_file:
+      - ../.env
+    volumes:
+      - ../src:/app/src
+    restart: unless-stopped
+
+  # ── Redis (hot session cache) ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save "" --appendonly no
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── PostgreSQL (persistent conversation history) ──────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: analytics
+      POSTGRES_PASSWORD: analytics
+      POSTGRES_DB: analytics
+    expose:
+      - "5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:

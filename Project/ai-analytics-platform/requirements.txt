@@ -1,0 +1,10 @@
+langchain-aws
+langchain-core
+langgraph
+boto3
+pandas
+openpyxl
+fastapi
+uvicorn
+python-multipart
+python-dotenv
